@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const { organization, user } = useAuthStore();
   const [copied, setCopied] = useState(false);
 
-  const widgetScript = `<script src="https://cdn.fluxypy.ai/widget/v1/chatbot.js" data-api-key="${organization?.apiKey}" async defer></script>`;
+  const widgetScript = `<script src="https://fluxypy-chat-api.onrender.com/widget/chatbot.js" data-api-key="${organization?.apiKey}" async defer></script>`;
 
   const copyScript = () => {
     navigator.clipboard.writeText(widgetScript);
