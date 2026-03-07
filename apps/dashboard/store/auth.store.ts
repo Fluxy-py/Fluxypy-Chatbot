@@ -15,6 +15,7 @@ interface Organization {
   status: string;
   subscriptionStatus: string;
   plan?: { name: string } | null;
+  settings?: any;
 }
 
 interface AuthState {
