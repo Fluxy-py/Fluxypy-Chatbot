@@ -77,7 +77,7 @@ export default function ChatTestPage() {
     setMessages([
       {
         role: 'assistant',
-        content: `Hi! I'm ${organization?.settings?.botName || 'Fluxypy Bot'}. Ask me anything about your knowledge base!`,
+        content: `Hi! I'm Fluxypy Bot. Ask me anything about your knowledge base!`,
       },
     ]);
   };
