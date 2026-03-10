@@ -3,10 +3,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { join } from 'path';
+import { Request, Response } from 'express'; // ✅ add this
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+  });
+
+  // Root route
+  app.getHttpAdapter().get('/', (req: Request, res: Response) => {
+    res.send('🚀 Your API is running');
   });
 
   app.setGlobalPrefix('api/v1');
@@ -24,7 +30,6 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ✅ Widget files serve karo as static assets
   app.useStaticAssets(
     join(__dirname, '..', '..', '..', 'widget'),
     { prefix: '/widget' },
@@ -32,8 +37,11 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`\n🤖 Fluxypy Bot API is running!`);
+
+  console.log(`🤖 Fluxypy Bot API is running!`);
   console.log(`📡 http://localhost:${port}/api/v1`);
-  console.log(`🧩 http://localhost:${port}/widget/test.html\n`);
+  console.log(`🌐 http://localhost:${port}/`);
+  console.log(`🧩 http://localhost:${port}/widget/test.html`);
 }
+
 bootstrap();
