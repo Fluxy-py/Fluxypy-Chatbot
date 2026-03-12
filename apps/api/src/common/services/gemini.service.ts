@@ -27,7 +27,6 @@ export class GeminiService {
     // For generating chat responses
     this.chatModel = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash-lite', // Fast and free tier friendly
-      temperature : 0.7, // More creative responses
     });
   }
 
@@ -81,7 +80,19 @@ USER QUESTION: ${userMessage}
 
 ANSWER:`;
 
-      const result = await this.chatModel.generateContent(fullPrompt);
+      const result = await this.chatModel.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: fullPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    });;
+
       return result.response.text();
     } catch (error) {
       this.logger.error('Generation failed:', error);
