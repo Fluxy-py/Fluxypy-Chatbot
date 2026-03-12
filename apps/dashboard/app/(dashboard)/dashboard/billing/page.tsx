@@ -3,14 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/store/auth.store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useThemeStore, getTokens } from '@/store/theme.store';
 import {
   CheckCircle, Zap, Crown, Building2,
   Loader2, AlertCircle, CreditCard,
-  Gift, Clock, XCircle, RefreshCw,
+  Gift, Clock, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,191 +19,88 @@ declare global {
 const PLAN_CONFIG: Record<string, any> = {
   Free: {
     icon: Zap,
-    color: 'text-slate-500',
-    bg: 'bg-slate-50',
-    badge: 'bg-slate-100 text-slate-600',
+    accent: '#64748b', accentBg: 'rgba(100,116,139,0.1)',
     features: [
-      '50 API calls/day',
-      '15 conversations/day',
-      '50 visitors/day',
-      '10MB knowledge base',
-      '5 messages/conversation',
-      'Fluxypy branding',
+      '50 API calls/day', '15 conversations/day', '50 visitors/day',
+      '10MB knowledge base', '5 messages/conversation', 'Fluxypy branding',
     ],
   },
   Starter: {
     icon: Zap,
-    color: 'text-blue-500',
-    bg: 'bg-blue-50',
-    badge: 'bg-blue-100 text-blue-700',
+    accent: '#3b82f6', accentBg: 'rgba(59,130,246,0.1)',
     features: [
-      '400 API calls/day',
-      '70 conversations/day',
-      '200 visitors/day',
-      '100MB knowledge base',
-      '20 messages/conversation',
-      'Email support',
+      '400 API calls/day', '70 conversations/day', '200 visitors/day',
+      '100MB knowledge base', '20 messages/conversation', 'Email support',
     ],
   },
   Pro: {
     icon: Crown,
-    color: 'text-indigo-500',
-    bg: 'bg-indigo-50',
-    badge: 'bg-indigo-100 text-indigo-700',
+    accent: '#6366f1', accentBg: 'rgba(99,102,241,0.1)',
     popular: true,
     features: [
-      '3,500 API calls/day',
-      '500 conversations/day',
-      '900 visitors/day',
-      '500MB knowledge base',
-      '50 messages/conversation',
-      'Custom domain ✅',
-      'Priority support ✅',
+      '3,500 API calls/day', '500 conversations/day', '900 visitors/day',
+      '500MB knowledge base', '50 messages/conversation',
+      'Custom domain ✅', 'Priority support ✅',
     ],
   },
   Business: {
     icon: Building2,
-    color: 'text-purple-500',
-    bg: 'bg-purple-50',
-    badge: 'bg-purple-100 text-purple-700',
+    accent: '#8b5cf6', accentBg: 'rgba(139,92,246,0.1)',
     features: [
-      '10,000 API calls/day',
-      '2,500 conversations/day',
-      '3,500 visitors/day',
-      '2GB knowledge base',
-      '100 messages/conversation',
-      'Custom domain ✅',
-      'Remove branding ✅',
-      'Priority support ✅',
-      'Dedicated manager ✅',
+      '10,000 API calls/day', '2,500 conversations/day', '3,500 visitors/day',
+      '2GB knowledge base', '100 messages/conversation',
+      'Custom domain ✅', 'Remove branding ✅',
+      'Priority support ✅', 'Dedicated manager ✅',
     ],
   },
 };
 
-// ── Status Badge ──────────────────────────────────
-function StatusBanner({ subscription }: { subscription: any }) {
+// ── Status Banner ─────────────────────────────────
+function StatusBanner({ subscription, t }: { subscription: any; t: any }) {
   if (!subscription) return null;
-
   const { status, plan, trialEndDate, daysLeftInTrial, currentPeriodEnd } = subscription;
 
-  if (status === 'none') {
-    return (
-      <Card className="border-slate-200 bg-slate-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-            <Zap className="w-5 h-5 text-slate-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">Free Plan</p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              50 API calls/day · Upgrade for more
-            </p>
-          </div>
-          <Badge className="ml-auto bg-slate-200 text-slate-600 border-0">Free</Badge>
-        </CardContent>
-      </Card>
-    );
-  }
+  const bannerBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+    borderRadius: 16, border: `1px solid ${t.cardBd}`,
+    background: t.cardBg, boxShadow: t.shadow, flexWrap: 'wrap',
+  };
+  const iconBox = (bg: string): React.CSSProperties => ({
+    width: 36, height: 36, borderRadius: 10, background: bg,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  });
+  const badge = (bg: string, color: string): React.CSSProperties => ({
+    marginLeft: 'auto', padding: '4px 10px', borderRadius: 8,
+    fontSize: 12, fontWeight: 600, background: bg, color,
+  });
 
-  if (status === 'trial') {
-    return (
-      <Card className="border-yellow-300 bg-yellow-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
-            <Gift className="w-5 h-5 text-yellow-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">🎁 Free Trial Active</p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Expires: {new Date(trialEndDate).toLocaleDateString('en-IN', {
-                day: 'numeric', month: 'long', year: 'numeric',
-              })} · {daysLeftInTrial} days left
-            </p>
-          </div>
-          {daysLeftInTrial <= 5 && (
-            <Badge className="ml-auto bg-red-100 text-red-600 border-0 animate-pulse">
-              Expiring Soon!
-            </Badge>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }
+  const configs: Record<string, any> = {
+    none: { icon: <Zap size={18} color="#64748b" />, iconBg: 'rgba(100,116,139,0.1)', title: 'Free Plan', sub: '50 API calls/day · Upgrade for more', badge: ['rgba(100,116,139,0.15)', '#64748b', 'Free'] },
+    trial: { icon: <Gift size={18} color="#eab308" />, iconBg: 'rgba(234,179,8,0.1)', title: '🎁 Free Trial Active', sub: `Expires: ${trialEndDate ? new Date(trialEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'} · ${daysLeftInTrial} days left`, badge: daysLeftInTrial <= 5 ? ['rgba(239,68,68,0.15)', '#ef4444', 'Expiring Soon!'] : ['rgba(234,179,8,0.15)', '#eab308', 'Trial'] },
+    active: { icon: <CheckCircle size={18} color="#22c55e" />, iconBg: 'rgba(34,197,94,0.1)', title: `✅ ${plan?.name} Plan Active`, sub: subscription.paymentType === 'subscription' ? `Auto-renews: ${currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-IN') : 'N/A'}` : 'One-time payment · No auto-renewal', badge: ['rgba(34,197,94,0.15)', '#22c55e', 'Active'] },
+    expired: { icon: <XCircle size={18} color="#ef4444" />, iconBg: 'rgba(239,68,68,0.1)', title: 'Trial Expired', sub: 'Subscribe to continue using all features', badge: ['rgba(239,68,68,0.15)', '#ef4444', 'Expired'] },
+    cancelled: { icon: <AlertCircle size={18} color="#f97316" />, iconBg: 'rgba(249,115,22,0.1)', title: 'Subscription Cancelled', sub: `Access until: ${currentPeriodEnd ? new Date(currentPeriodEnd).toLocaleDateString('en-IN') : 'N/A'}`, badge: ['rgba(249,115,22,0.15)', '#f97316', 'Cancelled'] },
+  };
 
-  if (status === 'active') {
-    return (
-      <Card className="border-green-300 bg-green-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">
-              ✅ {plan?.name} Plan Active
-            </p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {subscription.paymentType === 'subscription'
-                ? `Auto-renews: ${currentPeriodEnd
-                    ? new Date(currentPeriodEnd).toLocaleDateString('en-IN')
-                    : 'N/A'}`
-                : 'One-time payment · No auto-renewal'}
-            </p>
-          </div>
-          <Badge className="ml-auto bg-green-100 text-green-700 border-0">
-            Active
-          </Badge>
-        </CardContent>
-      </Card>
-    );
-  }
+  const c = configs[status];
+  if (!c) return null;
 
-  if (status === 'expired') {
-    return (
-      <Card className="border-red-300 bg-red-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-            <XCircle className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">Trial Expired</p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Subscribe to continue using all features
-            </p>
-          </div>
-          <Badge className="ml-auto bg-red-100 text-red-600 border-0">Expired</Badge>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (status === 'cancelled') {
-    return (
-      <Card className="border-orange-300 bg-orange-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 text-orange-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">Subscription Cancelled</p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Access until: {currentPeriodEnd
-                ? new Date(currentPeriodEnd).toLocaleDateString('en-IN')
-                : 'N/A'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return null;
+  return (
+    <div style={bannerBase}>
+      <div style={iconBox(c.iconBg)}>{c.icon}</div>
+      <div>
+        <p style={{ fontWeight: 600, color: t.text, fontSize: 14 }}>{c.title}</p>
+        <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>{c.sub}</p>
+      </div>
+      {c.badge && <span style={badge(c.badge[0], c.badge[1])}>{c.badge[2]}</span>}
+    </div>
+  );
 }
 
 // ── Trial Request Section ─────────────────────────
-function TrialSection({ subscription, onTrialRequested }: any) {
+function TrialSection({ subscription, onTrialRequested, t }: any) {
   const [loading, setLoading] = useState(false);
 
-  // ── Check if already requested ─────────────────
   const { data: trialStatus, refetch: refetchTrialStatus } = useQuery({
     queryKey: ['trial-status'],
     queryFn: async () => {
@@ -221,46 +115,42 @@ function TrialSection({ subscription, onTrialRequested }: any) {
 
   if (!canRequestTrial) return null;
 
-  // Already pending
+  const card: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
+    borderRadius: 16, border: `1px solid ${t.cardBd}`,
+    background: t.cardBg, boxShadow: t.shadow,
+  };
+  const iconBox: React.CSSProperties = {
+    width: 40, height: 40, borderRadius: 12, display: 'flex',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  };
+
   if (trialStatus?.status === 'pending') {
     return (
-      <Card className="border-yellow-200 bg-yellow-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
-            <Clock className="w-5 h-5 text-yellow-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">
-              ⏳ Trial Request Pending
-            </p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Your request is under review. Admin will approve within 24 hours.
-            </p>
-          </div>
-          <Badge className="ml-auto bg-yellow-100 text-yellow-700 border-0 animate-pulse">
-            Under Review
-          </Badge>
-        </CardContent>
-      </Card>
+      <div style={card}>
+        <div style={{ ...iconBox, background: 'rgba(234,179,8,0.1)' }}>
+          <Clock size={18} color="#eab308" />
+        </div>
+        <div>
+          <p style={{ fontWeight: 600, color: t.text, fontSize: 14 }}>⏳ Trial Request Pending</p>
+          <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>Your request is under review. Admin will approve within 24 hours.</p>
+        </div>
+        <span style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'rgba(234,179,8,0.15)', color: '#eab308' }}>Under Review</span>
+      </div>
     );
   }
 
-  // Already rejected
   if (trialStatus?.status === 'rejected') {
     return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="flex items-center gap-4 p-5">
-          <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-            <XCircle className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-800">Trial Request Rejected</p>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {trialStatus.rejectReason || 'Contact support for more information.'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={card}>
+        <div style={{ ...iconBox, background: 'rgba(239,68,68,0.1)' }}>
+          <XCircle size={18} color="#ef4444" />
+        </div>
+        <div>
+          <p style={{ fontWeight: 600, color: t.text, fontSize: 14 }}>Trial Request Rejected</p>
+          <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>{trialStatus.rejectReason || 'Contact support for more information.'}</p>
+        </div>
+      </div>
     );
   }
 
@@ -284,53 +174,55 @@ function TrialSection({ subscription, onTrialRequested }: any) {
   };
 
   return (
-    <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <Gift className="w-6 h-6 text-indigo-600" />
-            </div>
-            <div>
-              <p className="font-bold text-slate-800 text-lg">
-                Try Free for 30 Days! 🎁
-              </p>
-              <p className="text-sm text-slate-500 mt-0.5">
-                No credit card · Admin approves within 24 hrs
-              </p>
-              <div className="flex items-center gap-3 mt-2 flex-wrap">
-                {['100 API calls/day', '30MB KB', '50 conversations/day'].map((f) => (
-                  <span key={f} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                    ✅ {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <Button
-            onClick={handleRequestTrial}
-            disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6"
-          >
-            {loading ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Submitting...</>
-            ) : (
-              <><Gift className="w-4 h-4 mr-2" />Request Free Trial</>
-            )}
-          </Button>
+    <div style={{ ...card, background: `linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06))`, flexWrap: 'wrap' }}>
+      <div style={{ ...iconBox, background: 'rgba(99,102,241,0.12)' }}>
+        <Gift size={20} color="#6366f1" />
+      </div>
+      <div style={{ flex: 1, minWidth: 140 }}>
+        <p style={{ fontWeight: 700, color: t.text, fontSize: 16, fontFamily: "'Space Grotesk', sans-serif" }}>Try Free for 30 Days! 🎁</p>
+        <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>No credit card · Admin approves within 24 hrs</p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          {['100 API calls/day', '30MB KB', '50 conversations/day'].map((f) => (
+            <span key={f} style={{ fontSize: 11, background: 'rgba(99,102,241,0.12)', color: '#6366f1', padding: '2px 8px', borderRadius: 99 }}>✅ {f}</span>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      <button
+        onClick={handleRequestTrial}
+        disabled={loading}
+        style={{
+          padding: '12px 20px', border: 'none', borderRadius: 10, minHeight: 44,
+          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
+          fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: "'DM Sans', sans-serif",
+        }}
+      >
+        {loading ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Submitting...</> : <><Gift size={16} />Request Free Trial</>}
+      </button>
+    </div>
   );
 }
 
 // ── Main Billing Page ─────────────────────────────
 export default function BillingPage() {
+  const { dark } = useThemeStore();
+  const t = getTokens(dark);
   const queryClient = useQueryClient();
   const [paymentType, setPaymentType] = useState<'subscription' | 'one_time'>('subscription');
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [w, setW] = useState(1200);
 
-  // Load Razorpay script
+  useEffect(() => {
+    const u = () => setW(window.innerWidth);
+    u();
+    window.addEventListener('resize', u);
+    return () => window.removeEventListener('resize', u);
+  }, []);
+
+  const isMobile = w < 640;
+  const isSmall = w < 440;
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -379,18 +271,11 @@ export default function BillingPage() {
         currency: 'INR',
         name: 'Fluxypy Bot',
         description: `${planName} Plan — ${paymentType === 'subscription' ? 'Monthly' : 'One-time'}`,
-        prefill: {
-          name: orderData.orgName,
-          email: orderData.email,
-        },
+        prefill: { name: orderData.orgName, email: orderData.email },
         theme: { color: '#6366F1' },
         handler: async (response: any) => {
           try {
-            await api.post('/billing/verify', {
-              ...response,
-              planName,
-              paymentType,
-            });
+            await api.post('/billing/verify', { ...response, planName, paymentType });
             toast.success(`🎉 ${planName} plan activated!`);
             refetchSub();
             queryClient.invalidateQueries({ queryKey: ['usage'] });
@@ -424,55 +309,58 @@ export default function BillingPage() {
   const activePlanName = subscription?.plan?.name;
   const isActive = subscription?.status === 'active';
 
+  const card: React.CSSProperties = {
+    background: t.cardBg, border: `1px solid ${t.cardBd}`,
+    borderRadius: isSmall ? 12 : 16, boxShadow: t.shadow, transition: 'all 0.2s',
+  };
+
   return (
-    <div className="space-y-6">
+    <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Billing</h1>
-        <p className="text-slate-500 mt-1">
-          Manage your subscription and billing
-        </p>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 'clamp(20px, 2.5vw, 26px)', fontWeight: 800, letterSpacing: '-0.025em', color: t.text, marginBottom: 4 }}>
+          Billing
+        </h1>
+        <p style={{ fontSize: 14, color: t.textMuted }}>Manage your subscription and billing</p>
       </div>
 
-      {/* Current Status */}
-      <StatusBanner subscription={subscription} />
+      {/* Status Banner */}
+      <StatusBanner subscription={subscription} t={t} />
 
-      {/* Trial Request Section */}
-      <TrialSection
-        subscription={subscription}
-        onTrialRequested={refetchSub}
-      />
+      {/* Trial Request */}
+      <TrialSection subscription={subscription} onTrialRequested={refetchSub} t={t} />
 
       {/* Payment Type Toggle */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-slate-600">Payment Type:</span>
-        <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: t.textMuted }}>Payment Type:</span>
+        <div style={{ display: 'flex', background: t.inBg, borderRadius: 10, border: `1px solid ${t.inBd}`, padding: 3 }}>
           {([
-            { key: 'subscription', label: '🔄 Monthly Subscription' },
-            { key: 'one_time', label: '💳 One-time Payment' },
-          ] as const).map(({ key, label }) => (
+            { key: 'subscription' as const, label: '🔄 Monthly' },
+            { key: 'one_time' as const, label: '💳 One-time' },
+          ]).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setPaymentType(key)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                paymentType === key
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {label}
-            </button>
+              style={{
+                padding: isSmall ? '7px 12px' : '8px 14px', borderRadius: 8, border: 'none',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 36,
+                fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
+                background: paymentType === key ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                color: paymentType === key ? 'white' : t.textMuted,
+                boxShadow: paymentType === key ? '0 2px 8px rgba(99,102,241,0.3)' : 'none',
+              }}
+            >{label}</button>
           ))}
         </div>
         {paymentType === 'one_time' && (
-          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
+          <span style={{ fontSize: 11, color: '#f97316', background: 'rgba(249,115,22,0.1)', padding: '4px 10px', borderRadius: 8 }}>
             ⚠️ One-time = 1 month access, no auto-renewal
           </span>
         )}
       </div>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isSmall ? '100%' : isMobile ? '240px' : '280px'}, 1fr))`, gap: isSmall ? 14 : 20 }}>
         {(plans || [])
           .filter((p: any) => p.name !== 'Free' && p.name !== 'Enterprise')
           .map((plan: any) => {
@@ -481,135 +369,133 @@ export default function BillingPage() {
             const isCurrent = activePlanName === plan.name && isActive;
 
             return (
-              <Card
+              <div
                 key={plan.name}
-                className={`relative border-2 transition-all ${
-                  isCurrent
-                    ? 'border-green-400 shadow-lg'
+                style={{
+                  ...card,
+                  padding: isSmall ? '16px' : '24px',
+                  position: 'relative',
+                  border: isCurrent
+                    ? '2px solid #22c55e'
                     : config.popular
-                      ? 'border-indigo-400 shadow-md'
-                      : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'
-                }`}
+                      ? '2px solid #6366f1'
+                      : `1px solid ${t.cardBd}`,
+                  boxShadow: config.popular && !isCurrent
+                    ? '0 0 0 1px rgba(99,102,241,0.2), 0 8px 24px rgba(99,102,241,0.12)'
+                    : t.shadow,
+                }}
               >
-                {config.popular && !isCurrent && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-indigo-600 text-white px-3 border-0">
-                      ⭐ Most Popular
-                    </Badge>
+                {/* Badge */}
+                {(config.popular && !isCurrent) && (
+                  <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)' }}>
+                    <span style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', padding: '4px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>⭐ Most Popular</span>
                   </div>
                 )}
                 {isCurrent && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-green-600 text-white px-3 border-0">
-                      ✅ Current Plan
-                    </Badge>
+                  <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)' }}>
+                    <span style={{ background: '#22c55e', color: 'white', padding: '4px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>✅ Current Plan</span>
                   </div>
                 )}
 
-                <CardHeader className="pb-3 pt-6">
-                  <div className={`w-10 h-10 ${config.bg} rounded-xl flex items-center justify-center mb-2`}>
-                    <Icon className={`w-5 h-5 ${config.color}`} />
-                  </div>
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-3xl font-bold text-slate-900">
-                      ₹{Number(plan.priceMonthly).toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-slate-400 text-sm">
-                      {paymentType === 'subscription' ? '/month' : ' one-time'}
-                    </span>
-                  </div>
-                  {paymentType === 'subscription' && (
-                    <p className="text-xs text-green-600 font-medium">
-                      Save ₹{(Number(plan.priceMonthly) * 2).toLocaleString('en-IN')} yearly →
-                    </p>
+                {/* Icon + Name */}
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: config.accentBg || 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, marginTop: (config.popular || isCurrent) ? 8 : 0 }}>
+                  <Icon size={20} color={config.accent || '#6366f1'} />
+                </div>
+                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: isSmall ? 17 : 20, fontWeight: 700, color: t.text }}>{plan.name}</h3>
+
+                {/* Price */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 8 }}>
+                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: isSmall ? 26 : 32, fontWeight: 800, color: t.text }}>
+                    ₹{Number(plan.priceMonthly).toLocaleString('en-IN')}
+                  </span>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>
+                    {paymentType === 'subscription' ? '/month' : ' one-time'}
+                  </span>
+                </div>
+                {paymentType === 'subscription' && (
+                  <p style={{ fontSize: 12, color: '#22c55e', fontWeight: 600, marginTop: 4 }}>
+                    Save ₹{(Number(plan.priceMonthly) * 2).toLocaleString('en-IN')} yearly →
+                  </p>
+                )}
+
+                {/* Features */}
+                <ul style={{ listStyle: 'none', padding: 0, margin: '16px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(config.features || []).map((f: string) => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: t.textMuted }}>
+                      <CheckCircle size={15} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <button
+                  onClick={() => handlePayment(plan.name, Number(plan.priceMonthly))}
+                  disabled={isCurrent || loadingPlan === plan.name}
+                  style={{
+                    width: '100%', padding: '12px 0', borderRadius: 10, minHeight: 44,
+                    fontSize: 14, fontWeight: 700, cursor: isCurrent ? 'default' : 'pointer',
+                    fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    background: isCurrent
+                      ? '#22c55e'
+                      : config.popular
+                        ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                        : 'transparent',
+                    color: isCurrent || config.popular ? 'white' : t.text,
+                    border: isCurrent || config.popular ? 'none' : `1px solid ${t.cardBd}`,
+                    opacity: (isCurrent || loadingPlan === plan.name) ? 0.7 : 1,
+                  }}
+                >
+                  {loadingPlan === plan.name ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />Processing...</>
+                  ) : isCurrent ? (
+                    <><CheckCircle size={16} />Current Plan</>
+                  ) : (
+                    <><CreditCard size={16} />{paymentType === 'subscription' ? 'Subscribe' : 'Pay Once'} — ₹{Number(plan.priceMonthly).toLocaleString('en-IN')}</>
                   )}
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
-                    {(config.features || []).map((f: string) => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-slate-600">
-                        <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    className={`w-full ${
-                      isCurrent
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : config.popular
-                          ? 'bg-indigo-600 hover:bg-indigo-700'
-                          : ''
-                    }`}
-                    variant={isCurrent || config.popular ? 'default' : 'outline'}
-                    onClick={() => handlePayment(plan.name, Number(plan.priceMonthly))}
-                    disabled={isCurrent || loadingPlan === plan.name}
-                  >
-                    {loadingPlan === plan.name ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
-                    ) : isCurrent ? (
-                      <><CheckCircle className="w-4 h-4 mr-2" />Current Plan</>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        {paymentType === 'subscription' ? 'Subscribe' : 'Pay Once'}
-                        {' '}— ₹{Number(plan.priceMonthly).toLocaleString('en-IN')}
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
+                </button>
+              </div>
             );
           })}
       </div>
 
-      {/* Cancel + Manage */}
+      {/* Cancel Subscription */}
       {isActive && subscription?.paymentType === 'subscription' && (
-        <Card className="border-red-100">
-          <CardContent className="flex items-center justify-between p-5">
-            <div>
-              <p className="font-medium text-slate-700">Cancel Subscription</p>
-              <p className="text-sm text-slate-400 mt-0.5">
-                You'll retain access until end of billing period
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="text-red-500 border-red-200 hover:bg-red-50"
-              onClick={() => {
-                if (confirm('Are you sure you want to cancel?')) {
-                  cancelMutation.mutate();
-                }
-              }}
-              disabled={cancelMutation.isPending}
-            >
-              {cancelMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Cancelling...</>
-              ) : (
-                'Cancel Subscription'
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+        <div style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, borderColor: 'rgba(239,68,68,0.2)' }}>
+          <div>
+            <p style={{ fontWeight: 600, color: t.text, fontSize: 14 }}>Cancel Subscription</p>
+            <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>You'll retain access until end of billing period</p>
+          </div>
+          <button
+            onClick={() => { if (confirm('Are you sure you want to cancel?')) cancelMutation.mutate(); }}
+            disabled={cancelMutation.isPending}
+            style={{
+              padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, minHeight: 44,
+              cursor: cancelMutation.isPending ? 'not-allowed' : 'pointer',
+              background: 'transparent', color: '#ef4444',
+              border: '1px solid rgba(239,68,68,0.3)',
+              fontFamily: "'DM Sans', sans-serif",
+              opacity: cancelMutation.isPending ? 0.6 : 1,
+            }}
+          >
+            {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Subscription'}
+          </button>
+        </div>
       )}
 
       {/* Test Mode Notice */}
-      <Card className="border-yellow-200 bg-yellow-50">
-        <CardContent className="flex items-center gap-3 p-4">
-          <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-          <div className="text-sm text-yellow-800">
-            <strong>Test Mode:</strong> Card:{' '}
-            <code className="bg-yellow-100 px-1 rounded font-mono">4111 1111 1111 1111</code>
-            {' '}· Expiry: any future · CVV:{' '}
-            <code className="bg-yellow-100 px-1 rounded font-mono">123</code>
-            {' '}· UPI:{' '}
-            <code className="bg-yellow-100 px-1 rounded font-mono">success@razorpay</code>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={{ ...card, padding: isSmall ? '12px 14px' : '14px 20px', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: 12, borderColor: 'rgba(234,179,8,0.25)', background: dark ? 'rgba(234,179,8,0.05)' : 'rgba(234,179,8,0.06)', flexWrap: 'wrap' }}>
+        <AlertCircle size={18} color="#eab308" style={{ flexShrink: 0 }} />
+        <div style={{ fontSize: isSmall ? 12 : 13, color: t.textMuted, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+          <strong style={{ color: t.text }}>Test Mode:</strong> Card:{' '}
+          <code style={{ background: t.inBg, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}>4111 1111 1111 1111</code>
+          {' '}· Expiry: any future · CVV:{' '}
+          <code style={{ background: t.inBg, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}>123</code>
+          {' '}· UPI:{' '}
+          <code style={{ background: t.inBg, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', fontSize: 12 }}>success@razorpay</code>
+        </div>
+      </div>
     </div>
   );
 }

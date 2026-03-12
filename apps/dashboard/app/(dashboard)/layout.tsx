@@ -1,19 +1,16 @@
 import DashboardShell from '@/components/layout/dashboard-shell';
-import { Sidebar } from '@/components/layout/sidebar';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
-export default function DashboardLayout({
+export default function DashboardRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <DashboardShell>
-      <div className="flex h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex-1 ml-64 overflow-auto p-8">
-          {children}
-        </main>
-      </div>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
     </DashboardShell>
   );
 }

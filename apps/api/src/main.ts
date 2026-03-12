@@ -3,7 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { join } from 'path';
-import { Request, Response } from 'express'; // ✅ add this
+import { Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -25,9 +25,21 @@ async function bootstrap() {
     }),
   );
 
+  // CORS configuration
+  // Widget endpoints must accept any origin (domain check is done in WidgetSecurityService)
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow widget endpoints from any origin
+      // Domain authorization is handled in the WidgetSecurityService
+      callback(null, true);
+    },
     credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-api-key',
+      'x-session-token',
+    ],
   });
 
   app.useStaticAssets(

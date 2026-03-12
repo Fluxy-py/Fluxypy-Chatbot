@@ -38,6 +38,7 @@ export class OrganizationsService {
           botName: 'Fluxypy Bot',
           position: 'bottom-right',
           showBranding: true,
+          allowedDomains: [],
         },
       },
     });
@@ -49,5 +50,37 @@ export class OrganizationsService {
 
   async findByApiKey(apiKey: string) {
     return this.prisma.organization.findUnique({ where: { apiKey } });
+  }
+
+  /**
+   * Update organization settings
+   */
+  async updateSettings(orgId: string, updates: any) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { settings: true },
+    });
+
+    if (!org) {
+      return null;
+    }
+
+    const currentSettings = org.settings as any || {};
+    const newSettings = {
+      ...currentSettings,
+      ...updates,
+    };
+
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: {
+        settings: newSettings,
+      },
+      select: {
+        id: true,
+        name: true,
+        settings: true,
+      },
+    });
   }
 }

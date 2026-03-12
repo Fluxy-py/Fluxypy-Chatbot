@@ -83,21 +83,21 @@ export default function ChatTestPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Test Your Bot</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-xl sm:text-3xl font-bold text-slate-900">Test Your Bot</h1>
+          <p className="text-slate-500 mt-1 text-sm">
             Chat with your AI assistant powered by your knowledge base
           </p>
         </div>
-        <Button variant="outline" onClick={resetChat} size="sm">
+        <Button variant="outline" onClick={resetChat} size="sm" className="min-h-[44px]">
           <RefreshCw className="w-4 h-4 mr-2" />
           Reset Chat
         </Button>
       </div>
 
-      <Card className="h-[600px] flex flex-col">
+      <Card className="h-[calc(100vh-220px)] sm:h-[600px] flex flex-col">
         <CardHeader className="border-b pb-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-indigo-500 rounded-full flex items-center justify-center">
@@ -207,7 +207,7 @@ export default function ChatTestPage() {
             <Button
               onClick={sendMessage}
               disabled={loading || !input.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-indigo-600 hover:bg-indigo-700 min-h-[44px] min-w-[44px]"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

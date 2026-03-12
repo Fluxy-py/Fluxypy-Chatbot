@@ -7,6 +7,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { WidgetModule } from './modules/widget/widget.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { BillingModule } from './modules/billing/billing.module';
     KnowledgeModule,
     ChatModule,
     AdminModule,
-    BillingModule
+    BillingModule,
+    WidgetModule,
   ],
 })
 export class AppModule {}

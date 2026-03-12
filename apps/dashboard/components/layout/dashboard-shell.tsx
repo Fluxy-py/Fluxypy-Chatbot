@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
-import { Loader2, Bot } from 'lucide-react';
+import { useThemeStore, getTokens } from '@/store/theme.store';
+import { Bot } from 'lucide-react';
 
 export default function DashboardShell({
   children,
@@ -14,7 +15,10 @@ export default function DashboardShell({
 }) {
   const router = useRouter();
   const { setAuth, clearAuth } = useAuthStore();
+  const { dark, hydrate, hydrated } = useThemeStore();
   const [checking, setChecking] = useState(true);
+
+  useEffect(() => { hydrate(); }, [hydrate]);
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -26,7 +30,6 @@ export default function DashboardShell({
       }
 
       try {
-        // api instance use karo — interceptor automatically handle karega
         const res = await api.get('/auth/me');
         const data = res.data;
 
@@ -40,14 +43,13 @@ export default function DashboardShell({
             status: data.org.status,
             subscriptionStatus: data.org.subscriptionStatus,
             plan: data.org.plan ?? null,
+            settings: data.org.settings,
           },
           token,
         );
 
         setChecking(false);
       } catch {
-        // api.ts interceptor already handles 401 + redirect
-        // Baaki errors ke liye logout
         clearAuth();
         Cookies.remove('accessToken');
         Cookies.remove('refreshToken');
@@ -58,16 +60,37 @@ export default function DashboardShell({
     verifyAuth();
   }, []);
 
-  if (checking) {
+  if (checking || !hydrated) {
+    const t = getTokens(true);
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-          <Bot className="w-8 h-8 text-white" />
+      <div style={{
+        minHeight: '100vh',
+        background: '#080808',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+      }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 16,
+          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 24px rgba(99,102,241,0.3)',
+        }}>
+          <Bot size={28} color="white" />
         </div>
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm font-medium">Loading dashboard...</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 18, height: 18, border: '2px solid rgba(99,102,241,0.3)',
+            borderTopColor: '#6366f1', borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.4)', fontFamily: "'DM Sans', sans-serif" }}>
+            Loading dashboard...
+          </span>
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
