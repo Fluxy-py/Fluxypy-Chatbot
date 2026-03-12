@@ -27,6 +27,7 @@ export class GeminiService {
     // For generating chat responses
     this.chatModel = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash-lite', // Fast and free tier friendly
+      temperature : 0.7, // More creative responses
     });
   }
 

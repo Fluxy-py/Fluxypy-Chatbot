@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import Cookies from 'js-cookie';
+import { useThemeStore, getTokens } from '@/store/theme.store';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/store/auth.store';
 
 interface DomainSettingsProps {
   currentDomains: string[];
@@ -10,6 +12,9 @@ interface DomainSettingsProps {
 }
 
 export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps) {
+  const { dark } = useThemeStore();
+  const t = getTokens(dark);
+  const { user, organization, token, setAuth } = useAuthStore();
   const [domains, setDomains] = useState<string[]>(currentDomains);
   const [newDomain, setNewDomain] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,27 +106,17 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
     setIsLoading(true);
 
     try {
-      const accessToken = Cookies.get('accessToken');
+      // Use centralized API client which handles auth and refresh logic
+      const res = await api.patch('/org/settings', { allowedDomains: domains });
 
-      if (!accessToken) {
-        toast.error('Not authenticated. Please log in again.');
-        return;
-      }
-
-      const response = await fetch('/api/v1/org/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          allowedDomains: domains,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || 'Failed to save settings');
+      // Update auth store organization settings so UI reflects the change
+      try {
+        if (setAuth) {
+          const updatedOrg = { ...(organization || {}), settings: { ...(organization?.settings || {}), ...(res.data || {}), allowedDomains: domains } };
+          setAuth(user as any, updatedOrg as any, token as any);
+        }
+      } catch (e) {
+        // non-fatal
       }
 
       toast.success('Domain settings saved successfully!');
@@ -144,8 +139,8 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Domain Settings</h2>
-        <p className="text-gray-600 mt-1">
+        <h2 style={{ color: t.text }} className="text-2xl font-bold">Domain Settings</h2>
+        <p style={{ color: t.textMuted, marginTop: 4 }}>
           Control which domains can use your chatbot widget
         </p>
       </div>
@@ -153,7 +148,7 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
       {/* Warning Banner */}
       {showWarning && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex gap-3">
-          <div className="flex-shrink-0 text-yellow-600 text-lg">⚠️</div>
+          <div className="shrink-0 text-yellow-600 text-lg">⚠️</div>
           <div>
             <h3 className="font-semibold text-yellow-800">No domains configured</h3>
             <p className="text-yellow-700 text-sm mt-1">
@@ -164,8 +159,11 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
       )}
 
       {/* Add Domain Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Add New Domain</h3>
+      <div
+        className="rounded-lg border p-6"
+        style={{ backgroundColor: t.cardBg, borderColor: t.cardBd, boxShadow: t.shadow }}
+      >
+        <h3 style={{ color: t.text }} className="font-semibold mb-4">Add New Domain</h3>
 
         <div className="flex gap-2">
           <input
@@ -174,26 +172,35 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
             value={newDomain}
             onChange={(e) => setNewDomain(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addDomain()}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 rounded-lg"
+            style={{
+              backgroundColor: t.inBg,
+              color: t.text,
+              border: `1px solid ${t.inBd}`,
+              WebkitTextFillColor: t.text,
+              caretColor: t.text,
+              appearance: 'none',
+            }}
           />
           <button
             onClick={addDomain}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 rounded-lg font-medium"
+            style={{ backgroundColor: t.btnPrimary, color: t.btnText }}
           >
             Add Domain
           </button>
         </div>
 
-        <div className="mt-3 text-sm text-gray-600 space-y-1">
-          <p>✓ Exact match: <code className="bg-gray-100 px-2 py-1 rounded">example.com</code></p>
-          <p>✓ Wildcard: <code className="bg-gray-100 px-2 py-1 rounded">*.example.com</code> (matches any subdomain)</p>
-          <p>✓ Localhost: <code className="bg-gray-100 px-2 py-1 rounded">localhost</code> (always allowed for development)</p>
+        <div style={{ marginTop: 12, color: t.textMuted }} className="text-sm space-y-1">
+          <p>✓ Exact match: <code style={{ backgroundColor: t.bgSecond, padding: '2px 8px', borderRadius: 6 }}>example.com</code></p>
+          <p>✓ Wildcard: <code style={{ backgroundColor: t.bgSecond, padding: '2px 8px', borderRadius: 6 }}>* .example.com</code> (matches any subdomain)</p>
+          <p>✓ Localhost: <code style={{ backgroundColor: t.bgSecond, padding: '2px 8px', borderRadius: 6 }}>localhost</code> (always allowed for development)</p>
         </div>
       </div>
 
       {/* Allowed Domains List */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">
+      <div className="rounded-lg border p-6" style={{ backgroundColor: t.cardBg, borderColor: t.cardBd }}>
+        <h3 className="font-semibold mb-4" style={{ color: t.text }}>
           Allowed Domains ({domains.length})
         </h3>
 
@@ -206,14 +213,15 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
             {domains.map((domain) => (
               <div
                 key={domain}
-                className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between p-4 rounded-lg transition-colors"
+                style={{ backgroundColor: t.bgSecond, border: `1px solid ${t.cardBd}` }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-lg text-indigo-600">✓</div>
+                  <div style={{ fontSize: 18, color: '#6366f1' }}>✓</div>
                   <div>
-                    <p className="font-medium text-gray-900">{domain}</p>
+                    <p className="font-medium" style={{ color: t.text }}>{domain}</p>
                     {domain.startsWith('*.') && (
-                      <p className="text-xs text-gray-600">
+                      <p style={{ fontSize: 12, color: t.textMuted }}>
                         Wildcard: matches all subdomains
                       </p>
                     )}
@@ -221,7 +229,8 @@ export function DomainSettings({ currentDomains, onSaved }: DomainSettingsProps)
                 </div>
                 <button
                   onClick={() => removeDomain(domain)}
-                  className="px-3 py-1 text-red-600 hover:bg-red-50 rounded transition-colors text-sm font-medium"
+                  className="px-3 py-1 rounded transition-colors text-sm font-medium"
+                  style={{ color: '#dc2626', backgroundColor: 'transparent' }}
                 >
                   Remove
                 </button>
